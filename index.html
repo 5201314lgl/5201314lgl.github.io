@@ -35,6 +35,7 @@
         let robotPosition = { x: 0, y: 0 };
         let targetPosition = { x: 19, y: 19 };
         let obstacles = [];
+        let path = [];
 
         function initMaze() {
             for (let i = 0; i < rows; i++) {
@@ -49,6 +50,8 @@
             placeObstacles();
             placeRobot();
             placeTarget();
+            setInterval(moveRobot, 500); // Move robot every 500ms
+            setInterval(moveTarget, 700); // Move target every 700ms
         }
 
         function placeObstacles() {
@@ -74,21 +77,91 @@
         }
 
         function moveRobot() {
-            // Simple random movement logic for demonstration purposes
-            const directions = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-            const direction = directions[Math.floor(Math.random() * directions.length)];
-            const newX = robotPosition.x + direction.x;
-            const newY = robotPosition.y + direction.y;
-            if (newX >= 0 && newX < rows && newY >= 0 && newY < cols) {
+            if (path.length === 0) {
+                path = findPath(robotPosition, targetPosition);
+            }
+            if (path.length > 0) {
+                const nextStep = path.shift();
                 const currentCell = document.querySelector(`[data-x='${robotPosition.x}'][data-y='${robotPosition.y}']`);
                 currentCell.classList.remove('robot');
-                robotPosition.x = newX;
-                robotPosition.y = newY;
+                robotPosition = nextStep;
                 placeRobot();
             }
         }
 
-        setInterval(moveRobot, 500); // Move robot every 500ms
+        function moveTarget() {
+            const directions = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            const newX = targetPosition.x + direction.x;
+            const newY = targetPosition.y + direction.y;
+            if (newX >= 0 && newX < rows && newY >= 0 && newY < cols) {
+                const currentCell = document.querySelector(`[data-x='${targetPosition.x}'][data-y='${targetPosition.y}']`);
+                currentCell.classList.remove('target');
+                targetPosition.x = newX;
+                targetPosition.y = newY;
+                placeTarget();
+            }
+        }
+
+        function findPath(start, end) {
+            const openSet = [start];
+            const cameFrom = {};
+            const gScore = {};
+            gScore[`${start.x},${start.y}`] = 0;
+            const fScore = {};
+            fScore[`${start.x},${start.y}`] = heuristic(start, end);
+
+            while (openSet.length > 0) {
+                openSet.sort((a, b) => fScore[`${a.x},${a.y}`] - fScore[`${b.x},${b.y}`]);
+                const current = openSet.shift();
+                if (current.x === end.x && current.y === end.y) {
+                    return reconstructPath(cameFrom, current);
+                }
+                const neighbors = getNeighbors(current);
+                for (const neighbor of neighbors) {
+                    const tentativeGScore = gScore[`${current.x},${current.y}`] + 1;
+                    if (!gScore[`${neighbor.x},${neighbor.y}`] || tentativeGScore < gScore[`${neighbor.x},${neighbor.y}`]) {
+                        cameFrom[`${neighbor.x},${neighbor.y}`] = current;
+                        gScore[`${neighbor.x},${neighbor.y}`] = tentativeGScore;
+                        fScore[`${neighbor.x},${neighbor.y}`] = tentativeGScore + heuristic(neighbor, end);
+                        if (!openSet.some(node => node.x === neighbor.x && node.y === neighbor.y)) {
+                            openSet.push(neighbor);
+                        }
+                    }
+                }
+            }
+            return []; // No path found
+        }
+
+        function heuristic(a, b) {
+            return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        }
+
+        function getNeighbors(node) {
+            const neighbors = [];
+            const directions = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+            for (const direction of directions) {
+                const newX = node.x + direction.x;
+                const newY = node.y + direction.y;
+                if (newX >= 0 && newX < rows && newY >= 0 && newY < cols) {
+                    const neighborCell = document.querySelector(`[data-x='${newX}'][data-y='${newY}']`);
+                    if (!neighborCell.classList.contains('obstacle')) {
+                        neighbors.push({ x: newX, y: newY });
+                    }
+                }
+            }
+            return neighbors;
+        }
+
+        function reconstructPath(cameFrom, current) {
+            const totalPath = [current];
+            while (cameFrom[`${current.x},${current.y}`]) {
+                current = cameFrom[`${current.x},${current.y}`];
+                totalPath.unshift(current);
+            }
+            return totalPath;
+        }
+
         initMaze();
     </script>
 </body>
