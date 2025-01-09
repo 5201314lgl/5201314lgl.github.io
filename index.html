@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto Snake Game</title>
+    <title>Snake Game</title>
     <style>
         canvas {
             border: 1px solid black;
@@ -11,147 +10,169 @@
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const gridSize = 20;
-        const rows = canvas.height / gridSize;
-        const cols = canvas.width / gridSize;
-        let snake = [{ x: 5, y: 5 }];
-        let food = { x: 10, y: 10 };
-        let direction = { x: 0, y: 0 };
-        let gameInterval;
+<canvas id="gameCanvas" width="400" height="400"></canvas>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gridSize = 20;
+    let snake = [{x: 160, y: 160}, {x: 140, y: 160}, {x: 120, y: 160}];
+    let food = {x: 300, y: 300};
+    let velocity = {x: gridSize, y: 0};
+    let enemies = [];
+    let bullets = [];
+    let speedBoost = null;
 
-        function drawGrid() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'black';
-            for (let i = 0; i < rows; i++) {
-                for (let j = 0; j < cols; j++) {
-                    ctx.strokeRect(j * gridSize, i * gridSize, gridSize, gridSize);
-                }
-            }
-        }
+    function drawSnakePart(snakePart) {
+        ctx.fillStyle = 'lightgreen';
+        ctx.strokeStyle = 'darkgreen';
+        ctx.fillRect(snakePart.x, snakePart.y, gridSize, gridSize);
+        ctx.strokeRect(snakePart.x, snakePart.y, gridSize, gridSize);
+    }
 
-        function drawSnake() {
-            ctx.fillStyle = 'green';
-            snake.forEach(segment => {
-                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
-            });
-        }
+    function drawSnake() {
+        snake.forEach(drawSnakePart);
+    }
 
-        function drawFood() {
-            ctx.fillStyle = 'red';
-            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
-        }
-
-        function moveSnake() {
-            const newHead = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
-            if (newHead.x < 0 || newHead.x >= cols || newHead.y < 0 || newHead.y >= rows || snake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
-                clearInterval(gameInterval);
-                alert('Game Over');
-                return;
-            }
-            snake.unshift(newHead);
-            if (newHead.x === food.x && newHead.y === food.y) {
-                placeFood();
+    function moveSnake() {
+        const head = {x: snake[0].x + velocity.x, y: snake[0].y + velocity.y};
+        snake.unshift(head);
+        const didEatFood = snake[0].x === food.x && snake[0].y === food.y;
+        if (didEatFood) {
+            createFood();
+            if (speedBoost) {
+                clearTimeout(speedBoost);
+                speedBoost = setTimeout(resetSpeed, 5000);
             } else {
-                snake.pop();
+                speedBoost = setTimeout(resetSpeed, 5000);
             }
+        } else {
+            snake.pop();
         }
+    }
 
-        function placeFood() {
-            let placed = false;
-            while (!placed) {
-                const x = Math.floor(Math.random() * cols);
-                const y = Math.floor(Math.random() * rows);
-                if (!snake.some(segment => segment.x === x && segment.y === y)) {
-                    food = { x, y };
-                    placed = true;
+    function changeDirection(event) {
+        const keyPressed = event.keyCode;
+        const goingUp = velocity.y === -gridSize;
+        const goingDown = velocity.y === gridSize;
+        const goingRight = velocity.x === gridSize;
+        const goingLeft = velocity.x === -gridSize;
+
+        if (keyPressed === 37 && !goingRight) { // left arrow
+            velocity = {x: -gridSize, y: 0};
+        }
+        if (keyPressed === 38 && !goingDown) { // up arrow
+            velocity = {x: 0, y: -gridSize};
+        }
+        if (keyPressed === 39 && !goingLeft) { // right arrow
+            velocity = {x: gridSize, y: 0};
+        }
+        if (keyPressed === 40 && !goingUp) { // down arrow
+            velocity = {x: 0, y: gridSize};
+        }
+    }
+
+    function randomFood(min, max) {
+        return Math.round((Math.random() * (max-min) + min) / gridSize) * gridSize;
+    }
+
+    function createFood() {
+        food = {
+            x: randomFood(0, canvas.width - gridSize),
+            y: randomFood(0, canvas.height - gridSize)
+        };
+    }
+
+    function drawFood() {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(food.x, food.y, gridSize, gridSize);
+    }
+
+    function createEnemy() {
+        enemies.push({
+            x: randomFood(0, canvas.width - gridSize),
+            y: randomFood(0, canvas.height - gridSize),
+            direction: Math.floor(Math.random() * 4)
+        });
+    }
+
+    function moveEnemies() {
+        enemies.forEach(enemy => {
+            switch (enemy.direction) {
+                case 0: enemy.y -= gridSize; break; // up
+                case 1: enemy.x += gridSize; break; // right
+                case 2: enemy.y += gridSize; break; // down
+                case 3: enemy.x -= gridSize; break; // left
+            }
+            if (enemy.x < 0 || enemy.x >= canvas.width || enemy.y < 0 || enemy.y >= canvas.height) {
+                enemy.direction = Math.floor(Math.random() * 4); // Change direction when hitting the wall
+            }
+        });
+    }
+
+    function drawEnemies() {
+        ctx.fillStyle = 'blue';
+        enemies.forEach(enemy => {
+            ctx.fillRect(enemy.x, enemy.y, gridSize, gridSize);
+        });
+    }
+
+    function shootBullet() {
+        bullets.push({x: snake[0].x, y: snake[0].y, direction: velocity});
+    }
+
+    function moveBullets() {
+        bullets.forEach(bullet => {
+            bullet.x += bullet.direction.x;
+            bullet.y += bullet.direction.y;
+        });
+        bullets = bullets.filter(bullet => bullet.x >= 0 && bullet.x < canvas.width && bullet.y >= 0 && bullet.y < canvas.height);
+    }
+
+    function drawBullets() {
+        ctx.fillStyle = 'black';
+        bullets.forEach(bullet => {
+            ctx.fillRect(bullet.x, bullet.y, gridSize, gridSize);
+        });
+    }
+
+    function checkCollisions() {
+        enemies.forEach((enemy, index) => {
+            bullets.forEach((bullet, bulletIndex) => {
+                if (bullet.x === enemy.x && bullet.y === enemy.y) {
+                    enemies.splice(index, 1); // Remove enemy on hit
+                    bullets.splice(bulletIndex, 1); // Remove bullet on hit
                 }
-            }
-        }
+            });
+        });
+    }
 
-        function changeDirection(event) {
-            const keyPressed = event.keyCode;
-            const goingUp = direction.y === -1;
-            const goingDown = direction.y === 1;
-            const goingRight = direction.x === 1;
-            const goingLeft = direction.x === -1;
-            if (keyPressed === 37 && !goingRight) { // left arrow
-                direction = { x: -1, y: 0 };
-            } else if (keyPressed === 38 && !goingDown) { // up arrow
-                direction = { x: 0, y: -1 };
-            } else if (keyPressed === 39 && !goingLeft) { // right arrow
-                direction = { x: 1, y: 0 };
-            } else if (keyPressed === 40 && !goingUp) { // down arrow
-                direction = { x: 0, y: 1 };
-            }
-        }
+    function resetSpeed() {
+        velocity = {x: gridSize, y: 0}; // Reset to default speed after boost ends
+        speedBoost = null;
+    }
 
-        function autoMove() {
-            const path = findPath();
-            if (path.length > 0) {
-                direction = { x: path[1].x - path[0].x, y: path[1].y - path[0].y };
-            }
-        }
+    function clearCanvas() {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
-        function findPath() {
-            const queue = [snake[0]];
-            const visited = new Set([`${snake[0].x},${snake[0].y}`]);
-            const parentMap = new Map();
-            parentMap.set(`${snake[0].x},${snake[0].y}`, null);
-            while (queue.length > 0) {
-                const current = queue.shift();
-                if (current.x === food.x && current.y === food.y) {
-                    return reconstructPath(parentMap, current);
-                }
-                const neighbors = getNeighbors(current);
-                neighbors.forEach(neighbor => {
-                    if (!visited.has(`${neighbor.x},${neighbor.y}`) && !snake.some(segment => segment.x === neighbor.x && segment.y === neighbor.y)) {
-                        queue.push(neighbor);
-                        visited.add(`${neighbor.x},${neighbor.y}`);
-                        parentMap.set(`${neighbor.x},${neighbor.y}`, current);
-                    }
-                });
-            }
-            return [];
-        }
+    function gameLoop() {
+        clearCanvas();
+        drawFood();
+        moveSnake();
+        drawSnake();
+        moveEnemies();
+        drawEnemies();
+        moveBullets();
+        drawBullets();
+        checkCollisions();
+        setTimeout(gameLoop, 100);
+    }
 
-        function getNeighbors(node) {
-            const neighbors = [];
-            if (node.x > 0) neighbors.push({ x: node.x - 1, y: node.y });
-            if (node.x < cols - 1) neighbors.push({ x: node.x + 1, y: node.y });
-            if (node.y > 0) neighbors.push({ x: node.x, y: node.y - 1 });
-            if (node.y < rows - 1) neighbors.push({ x: node.x, y: node.y + 1 });
-            return neighbors;
-        }
-
-        function reconstructPath(parentMap, endNode) {
-            const path = [];
-            let current = endNode;
-            while (current !== null) {
-                path.unshift(current);
-                current = parentMap.get(`${current.x},${current.y}`);
-            }
-            return path;
-        }
-
-        function gameLoop() {
-            drawGrid();
-            drawSnake();
-            drawFood();
-            moveSnake();
-        }
-
-        function startGame() {
-            gameInterval = setInterval(gameLoop, 100);
-            document.addEventListener('keydown', changeDirection);
-            setInterval(autoMove, 100); // Auto move every 500ms
-        }
-
-        placeFood();
-        startGame();
-    </script>
+    document.addEventListener("keydown", changeDirection);
+    document.addEventListener("keydown", (e) => { if (e.key === " ") shootBullet(); }); // Spacebar to shoot bullets
+    setInterval(createEnemy, 2000); // Create an enemy every 2 seconds
+    gameLoop();
+</script>
 </body>
 </html>
