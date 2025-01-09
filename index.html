@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maze Game with A* Pathfinding</title>
+    <title>Maze Game</title>
     <style>
         canvas {
             border: 1px solid black;
@@ -21,9 +21,7 @@
         const maze = [];
         const player = { x: 0, y: 0 };
         const enemy = { x: cols - 1, y: rows - 1 };
-        const openSet = [];
-        const closedSet = [];
-        const path = [];
+        const bullets = [];
 
         function initMaze() {
             for (let i = 0; i < rows; i++) {
@@ -54,80 +52,24 @@
             ctx.fillRect(enemy.x * cellSize, enemy.y * cellSize, cellSize, cellSize);
         }
 
-        function heuristic(a, b) {
-            return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-        }
-
-        function removeFromArray(arr, elt) {
-            for (let i = arr.length - 1; i >= 0; i--) {
-                if (arr[i] === elt) {
-                    arr.splice(i, 1);
-                }
-            }
-        }
-
-        function aStar() {
-            let endNode = { x: player.x, y: player.y };
-            let startNode = { x: enemy.x, y: enemy.y };
-            openSet.push(startNode);
-
-            while (openSet.length > 0) {
-                let winner = 0;
-                for (let i = 0; i < openSet.length; i++) {
-                    if (openSet[i].f < openSet[winner].f) {
-                        winner = i;
-                    }
-                }
-                let current = openSet[winner];
-                if (current === endNode) {
-                    let temp = current;
-                    path.push(temp);
-                    while (temp.previous) {
-                        path.push(temp.previous);
-                        temp = temp.previous;
-                    }
-                    return path;
-                }
-                removeFromArray(openSet, current);
-                closedSet.push(current);
-                let neighbors = current.neighbors();
-                for (let i = 0; i < neighbors.length; i++) {
-                    let neighbor = neighbors[i];
-                    if (!closedSet.includes(neighbor) && maze[neighbor.y][neighbor.x] === 1) {
-                        let tempG = current.g + 1;
-                        let newPath = false;
-                        if (openSet.includes(neighbor)) {
-                            if (tempG < neighbor.g) {
-                                neighbor.g = tempG;
-                                newPath = true;
-                            }
-                        } else {
-                            neighbor.g = tempG;
-                            newPath = true;
-                            openSet.push(neighbor);
-                        }
-                        if (newPath) {
-                            neighbor.h = heuristic(neighbor, endNode);
-                            neighbor.f = neighbor.g + neighbor.h;
-                            neighbor.previous = current;
-                        }
-                    }
-                }
-            }
-            return []; // No path found
+        function movePlayer() {
+            // Simple AI to move towards the enemy
+            if (player.x < enemy.x) player.x++;
+            else if (player.x > enemy.x) player.x--;
+            if (player.y < enemy.y) player.y++;
+            else if (player.y > enemy.y) player.y--;
         }
 
         function moveEnemy() {
-            if (path.length > 0) {
-                let nextStep = path.pop();
-                enemy.x = nextStep.x;
-                enemy.y = nextStep.y;
-            } else {
-                path = aStar();
-            }
+            // Simple AI to move away from the player
+            if (enemy.x < player.x) enemy.x++;
+            else if (enemy.x > player.x) enemy.x--;
+            if (enemy.y < player.y) enemy.y++;
+            else if (enemy.y > player.y) enemy.y--;
         }
 
         function gameLoop() {
+            movePlayer();
             moveEnemy();
             drawMaze();
             requestAnimationFrame(gameLoop);
