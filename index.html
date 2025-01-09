@@ -114,6 +114,24 @@
             });
         }
 
+        function moveRobot(map, path) {
+            let index = 0;
+            const intervalId = setInterval(() => {
+                if (index < path.length) {
+                    const [row, col] = path[index];
+                    const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                    if (cellElement) {
+                        // Remove robot from previous position if it exists
+                        document.querySelectorAll('.robot').forEach(el => el.classList.remove('robot'));
+                        cellElement.classList.add('robot');
+                    }
+                    index++;
+                } else {
+                    clearInterval(intervalId); // Stop the interval when the path is fully traversed
+                }
+            }, 500); // Move every 500 milliseconds (adjust as needed)
+        }
+
         const rows = 20; // Number of rows in the map
         const cols = 20; // Number of columns in the map
         const map = generateMap(rows, cols);
@@ -127,6 +145,7 @@
 
         const path = findPath(map, startRow, startCol, endRow, endCol);
         displayPath(map, path);
+        moveRobot(map, path); // Start moving the robot along the path
     </script>
 </body>
 </html>
