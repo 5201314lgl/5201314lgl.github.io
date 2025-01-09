@@ -23,6 +23,9 @@
         .path {
             background-color: green;
         }
+        .robot {
+            background-color: red;
+        }
     </style>
 </head>
 <body>
@@ -50,12 +53,64 @@
         function displayMap(map) {
             const mapContainer = document.getElementById('map');
             mapContainer.innerHTML = ''; // Clear previous map
-            map.forEach(row => {
-                row.forEach(cell => {
+            map.forEach((row, i) => {
+                row.forEach((cell, j) => {
                     const cellElement = document.createElement('div');
                     cellElement.classList.add('cell', cell);
+                    cellElement.dataset.row = i;
+                    cellElement.dataset.col = j;
                     mapContainer.appendChild(cellElement);
                 });
+            });
+        }
+
+        function findPath(map, startRow, startCol, endRow, endCol) {
+            const directions = [
+                [1, 0], [-1, 0], [0, 1], [0, -1] // Down, Up, Right, Left
+            ];
+            const queue = [[startRow, startCol]];
+            const visited = new Set([`${startRow},${startCol}`]);
+            const parentMap = new Map();
+            parentMap.set(`${startRow},${startCol}`, null);
+
+            while (queue.length > 0) {
+                const [currentRow, currentCol] = queue.shift();
+                if (currentRow === endRow && currentCol === endCol) {
+                    return reconstructPath(parentMap, endRow, endCol);
+                }
+                directions.forEach(([dRow, dCol]) => {
+                    const newRow = currentRow + dRow;
+                    const newCol = currentCol + dCol;
+                    if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length) {
+                        const key = `${newRow},${newCol}`;
+                        if (!visited.has(key) && map[newRow][newCol] !== 'wall') {
+                            queue.push([newRow, newCol]);
+                            visited.add(key);
+                            parentMap.set(key, [currentRow, currentCol]);
+                        }
+                    }
+                });
+            }
+            return []; // No path found
+        }
+
+        function reconstructPath(parentMap, endRow, endCol) {
+            const path = [];
+            let current = [endRow, endCol];
+            while (current !== null) {
+                path.unshift(current);
+                current = parentMap.get(`${current[0]},${current[1]}`);
+            }
+            return path;
+        }
+
+        function displayPath(map, path) {
+            path.forEach(([row, col]) => {
+                const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                if (cellElement && cellElement.classList.contains('path')) {
+                    cellElement.classList.remove('path');
+                    cellElement.classList.add('robot');
+                }
             });
         }
 
@@ -63,6 +118,15 @@
         const cols = 20; // Number of columns in the map
         const map = generateMap(rows, cols);
         displayMap(map);
+
+        // Example start and end points (you can change these to any valid coordinates)
+        const startRow = 0;
+        const startCol = 0;
+        const endRow = rows - 1;
+        const endCol = cols - 1;
+
+        const path = findPath(map, startRow, startCol, endRow, endCol);
+        displayPath(map, path);
     </script>
 </body>
 </html>
