@@ -2,167 +2,92 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Robot Maze Game</title>
+    <title>2D Map Game</title>
     <style>
-        #maze {
-            display: grid;
-            grid-template-columns: repeat(20, 20px);
-            grid-gap: 1px;
-        }
-        .cell {
-            width: 20px;
-            height: 20px;
-            background-color: white;
+        #gameCanvas {
             border: 1px solid black;
-        }
-        .robot {
-            background-color: red;
-        }
-        .target {
-            background-color: green;
-        }
-        .obstacle {
-            background-color: grey;
         }
     </style>
 </head>
 <body>
-    <div id="maze"></div>
-    <script>
-        const rows = 20;
-        const cols = 20;
-        const maze = document.getElementById('maze');
-        let robotPosition = { x: 0, y: 0 };
-        let targetPosition = { x: 19, y: 19 };
-        let obstacles = [];
-        let path = [];
+<canvas id="gameCanvas" width="500" height="500"></canvas>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-        function initMaze() {
-            for (let i = 0; i < rows; i++) {
-                for (let j = 0; j < cols; j++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.x = i;
-                    cell.dataset.y = j;
-                    maze.appendChild(cell);
-                }
+    let robot = { x: 50, y: 50, size: 20 };
+    let monster = { x: 400, y: 400, size: 20 };
+    let obstacles = [{ x: 150, y: 150, size: 30 }, { x: 300, y: 300, size: 30 }];
+    let bullets = [];
+
+    function drawRobot() {
+        ctx.fillStyle = 'blue';
+        ctx.fillRect(robot.x, robot.y, robot.size, robot.size);
+    }
+
+    function drawMonster() {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(monster.x, monster.y, monster.size, monster.size);
+    }
+
+    function drawObstacles() {
+        obstacles.forEach(obstacle => {
+            ctx.fillStyle = 'gray';
+            ctx.fillRect(obstacle.x, obstacle.y, obstacle.size, obstacle.size);
+        });
+    }
+
+    function moveRobot() {
+        if (robot.x < monster.x) robot.x += 1;
+        else if (robot.x > monster.x) robot.x -= 1;
+        if (robot.y < monster.y) robot.y += 1;
+        else if (robot.y > monster.y) robot.y -= 1;
+    }
+
+    function shootBullet() {
+        bullets.push({ x: robot.x + robot.size / 2, y: robot.y + robot.size / 2, speedX: (monster.x - robot.x) / 10, speedY: (monster.y - robot.y) / 10 });
+    }
+
+    function updateBullets() {
+        bullets = bullets.filter(bullet => {
+            bullet.x += bullet.speedX;
+            bullet.y += bullet.speedY;
+            return bullet.x >= 0 && bullet.x <= canvas.width && bullet.y >= 0 && bullet.y <= canvas.height;
+        });
+    }
+
+    function drawBullets() {
+        bullets.forEach(bullet => {
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath();
+            ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    function checkCollision() {
+        bullets.forEach((bullet, index) => {
+            if (Math.abs(bullet.x - monster.x) < monster.size && Math.abs(bullet.y - monster.y) < monster.size) {
+                bullets.splice(index, 1);
+                alert("Monster defeated!");
             }
-            placeObstacles();
-            placeRobot();
-            placeTarget();
-            setInterval(moveRobot, 500); // Move robot every 500ms
-            setInterval(moveTarget, 700); // Move target every 700ms
-        }
+        });
+    }
 
-        function placeObstacles() {
-            for (let i = 0; i < 30; i++) {
-                const x = Math.floor(Math.random() * rows);
-                const y = Math.floor(Math.random() * cols);
-                const obstacleCell = document.querySelector(`[data-x='${x}'][data-y='${y}']`);
-                if (!obstacleCell.classList.contains('robot') && !obstacleCell.classList.contains('target')) {
-                    obstacleCell.classList.add('obstacle');
-                    obstacles.push({ x, y });
-                }
-            }
-        }
+    function gameLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawObstacles();
+        drawMonster();
+        drawRobot();
+        updateBullets();
+        drawBullets();
+        checkCollision();
+        moveRobot();
+        requestAnimationFrame(gameLoop);
+    }
 
-        function placeRobot() {
-            const robotCell = document.querySelector(`[data-x='${robotPosition.x}'][data-y='${robotPosition.y}']`);
-            robotCell.classList.add('robot');
-        }
-
-        function placeTarget() {
-            const targetCell = document.querySelector(`[data-x='${targetPosition.x}'][data-y='${targetPosition.y}']`);
-            targetCell.classList.add('target');
-        }
-
-        function moveRobot() {
-            if (path.length === 0) {
-                path = findPath(robotPosition, targetPosition);
-            }
-            if (path.length > 0) {
-                const nextStep = path.shift();
-                const currentCell = document.querySelector(`[data-x='${robotPosition.x}'][data-y='${robotPosition.y}']`);
-                currentCell.classList.remove('robot');
-                robotPosition = nextStep;
-                placeRobot();
-            }
-        }
-
-        function moveTarget() {
-            const directions = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-            const direction = directions[Math.floor(Math.random() * directions.length)];
-            const newX = targetPosition.x + direction.x;
-            const newY = targetPosition.y + direction.y;
-            if (newX >= 0 && newX < rows && newY >= 0 && newY < cols) {
-                const currentCell = document.querySelector(`[data-x='${targetPosition.x}'][data-y='${targetPosition.y}']`);
-                currentCell.classList.remove('target');
-                targetPosition.x = newX;
-                targetPosition.y = newY;
-                placeTarget();
-            }
-        }
-
-        function findPath(start, end) {
-            const openSet = [start];
-            const cameFrom = {};
-            const gScore = {};
-            gScore[`${start.x},${start.y}`] = 0;
-            const fScore = {};
-            fScore[`${start.x},${start.y}`] = heuristic(start, end);
-
-            while (openSet.length > 0) {
-                openSet.sort((a, b) => fScore[`${a.x},${a.y}`] - fScore[`${b.x},${b.y}`]);
-                const current = openSet.shift();
-                if (current.x === end.x && current.y === end.y) {
-                    return reconstructPath(cameFrom, current);
-                }
-                const neighbors = getNeighbors(current);
-                for (const neighbor of neighbors) {
-                    const tentativeGScore = gScore[`${current.x},${current.y}`] + 1;
-                    if (!gScore[`${neighbor.x},${neighbor.y}`] || tentativeGScore < gScore[`${neighbor.x},${neighbor.y}`]) {
-                        cameFrom[`${neighbor.x},${neighbor.y}`] = current;
-                        gScore[`${neighbor.x},${neighbor.y}`] = tentativeGScore;
-                        fScore[`${neighbor.x},${neighbor.y}`] = tentativeGScore + heuristic(neighbor, end);
-                        if (!openSet.some(node => node.x === neighbor.x && node.y === neighbor.y)) {
-                            openSet.push(neighbor);
-                        }
-                    }
-                }
-            }
-            return []; // No path found
-        }
-
-        function heuristic(a, b) {
-            return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-        }
-
-        function getNeighbors(node) {
-            const neighbors = [];
-            const directions = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-            for (const direction of directions) {
-                const newX = node.x + direction.x;
-                const newY = node.y + direction.y;
-                if (newX >= 0 && newX < rows && newY >= 0 && newY < cols) {
-                    const neighborCell = document.querySelector(`[data-x='${newX}'][data-y='${newY}']`);
-                    if (!neighborCell.classList.contains('obstacle')) {
-                        neighbors.push({ x: newX, y: newY });
-                    }
-                }
-            }
-            return neighbors;
-        }
-
-        function reconstructPath(cameFrom, current) {
-            const totalPath = [current];
-            while (cameFrom[`${current.x},${current.y}`]) {
-                current = cameFrom[`${current.x},${current.y}`];
-                totalPath.unshift(current);
-            }
-            return totalPath;
-        }
-
-        initMaze();
-    </script>
+    setInterval(shootBullet, 1000); // Shoot a bullet every second
+    gameLoop();
+</script>
 </body>
 </html>
