@@ -35,18 +35,23 @@
 
     function moveSnake() {
         const head = {x: snake[0].x + velocity.x, y: snake[0].y + velocity.y};
-        snake.unshift(head);
-        const didEatFood = snake[0].x === food.x && snake[0].y === food.y;
-        if (didEatFood) {
-            createFood();
-            if (speedBoost) {
-                clearTimeout(speedBoost);
-                speedBoost = setTimeout(resetSpeed, 5000);
-            } else {
-                speedBoost = setTimeout(resetSpeed, 5000);
-            }
+        if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+            // Change direction when hitting the wall
+            changeDirectionAutomatically();
         } else {
-            snake.pop();
+            snake.unshift(head);
+            const didEatFood = snake[0].x === food.x && snake[0].y === food.y;
+            if (didEatFood) {
+                createFood();
+                if (speedBoost) {
+                    clearTimeout(speedBoost);
+                    speedBoost = setTimeout(resetSpeed, 5000);
+                } else {
+                    speedBoost = setTimeout(resetSpeed, 5000);
+                }
+            } else {
+                snake.pop();
+            }
         }
     }
 
@@ -71,6 +76,22 @@
         }
     }
 
+    function changeDirectionAutomatically() {
+        const possibleDirections = [
+            {x: gridSize, y: 0}, // right
+            {x: -gridSize, y: 0}, // left
+            {x: 0, y: gridSize}, // down
+            {x: 0, y: -gridSize} // up
+        ];
+        for (let i = 0; i < possibleDirections.length; i++) {
+            const newHead = {x: snake[0].x + possibleDirections[i].x, y: snake[0].y + possibleDirections[i].y};
+            if (newHead.x >= 0 && newHead.x < canvas.width && newHead.y >= 0 && newHead.y < canvas.height) {
+                velocity = possibleDirections[i];
+                break;
+            }
+        }
+    }
+
     function randomFood(min, max) {
         return Math.round((Math.random() * (max-min) + min) / gridSize) * gridSize;
     }
@@ -82,16 +103,11 @@
         };
     }
 
-    function drawFood() {
-        ctx.fillStyle = 'red';
-        ctx.fillRect(food.x, food.y, gridSize, gridSize);
-    }
-
     function createEnemy() {
         enemies.push({
             x: randomFood(0, canvas.width - gridSize),
             y: randomFood(0, canvas.height - gridSize),
-            direction: Math.floor(Math.random() * 4)
+            direction: Math.floor(Math.random() * 4) // Random initial direction
         });
     }
 
@@ -111,9 +127,7 @@
 
     function drawEnemies() {
         ctx.fillStyle = 'blue';
-        enemies.forEach(enemy => {
-            ctx.fillRect(enemy.x, enemy.y, gridSize, gridSize);
-        });
+        enemies.forEach(drawSnakePart); // Reuse drawSnakePart to draw enemies as squares
     }
 
     function shootBullet() {
@@ -130,16 +144,14 @@
 
     function drawBullets() {
         ctx.fillStyle = 'black';
-        bullets.forEach(bullet => {
-            ctx.fillRect(bullet.x, bullet.y, gridSize, gridSize);
-        });
+        bullets.forEach(drawSnakePart); // Reuse drawSnakePart to draw bullets as squares
     }
 
     function checkCollisions() {
-        enemies.forEach((enemy, index) => {
-            bullets.forEach((bullet, bulletIndex) => {
+        bullets.forEach((bullet, bulletIndex) => {
+            enemies.forEach((enemy, enemyIndex) => {
                 if (bullet.x === enemy.x && bullet.y === enemy.y) {
-                    enemies.splice(index, 1); // Remove enemy on hit
+                    enemies.splice(enemyIndex, 1); // Remove enemy on hit
                     bullets.splice(bulletIndex, 1); // Remove bullet on hit
                 }
             });
@@ -166,12 +178,12 @@
         moveBullets();
         drawBullets();
         checkCollisions();
-        setTimeout(gameLoop, 100);
+        setTimeout(gameLoop, 100); // Adjust delay to control game speed
     }
 
     document.addEventListener("keydown", changeDirection);
     document.addEventListener("keydown", (e) => { if (e.key === " ") shootBullet(); }); // Spacebar to shoot bullets
-    setInterval(createEnemy, 2000); // Create an enemy every 2 seconds
+    setInterval(createEnemy, 2000); // Create a new enemy every 2 seconds
     gameLoop();
 </script>
 </body>
