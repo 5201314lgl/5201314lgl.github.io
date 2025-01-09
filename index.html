@@ -7,7 +7,7 @@
     <style>
         .map {
             display: grid;
-            grid-template-columns: repeat(20, 20px); /* Adjust the size as needed */
+            grid-template-columns: repeat(40, 40px); /* Adjust the size as needed */
             grid-gap: 1px;
         }
         .cell {
@@ -26,10 +26,15 @@
         .robot {
             background-color: red;
         }
+        .ball {
+            background-color: blue;
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
     <div id="map" class="map"></div>
+    <div id="timer">Time: 0s</div>
     <script>
         function generateMap(rows, cols) {
             const map = [];
@@ -114,8 +119,9 @@
             });
         }
 
-        function moveRobot(map, path) {
+        function moveRobot(map, path, ballPosition) {
             let index = 0;
+            let timer = 0;
             const intervalId = setInterval(() => {
                 if (index < path.length) {
                     const [row, col] = path[index];
@@ -129,23 +135,57 @@
                 } else {
                     clearInterval(intervalId); // Stop the interval when the path is fully traversed
                 }
+                // Move ball and check collision with robot
+                moveBall(ballPosition);
+                if (checkCollision(ballPosition)) {
+                    alert("Collision detected! Game over.");
+                    clearInterval(intervalId); // Stop the game on collision
+                }
+                timer++;
+                document.getElementById('timer').textContent = `Time: ${timer}s`;
             }, 500); // Move every 500 milliseconds (adjust as needed)
         }
 
-        const rows = 20; // Number of rows in the map
-        const cols = 20; // Number of columns in the map
-        const map = generateMap(rows, cols);
-        displayMap(map);
+        function moveBall(ballPosition) {
+            const directions = [
+                [1, 0], [-1, 0], [0, 1], [0, -1] // Down, Up, Right, Left
+            ];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            const newRow = ballPosition[0] + direction[0];
+            const newCol = ballPosition[1] + direction[1];
+            if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length && map[newRow][newCol] !== 'wall') {
+                ballPosition[0] = newRow;
+                ballPosition[1] = newCol;
+                const ballElement = document.querySelector(`.cell[data-row="${newRow}"][data-col="${newCol}"]`);
+                if (ballElement) {
+                    ballElement.classList.add('ball');
+                }
+            }
+        }
 
-        // Example start and end points (you can change these to any valid coordinates)
-        const startRow = 0;
-        const startCol = 0;
-        const endRow = rows - 1;
-        const endCol = cols - 1;
+        function checkCollision(ballPosition) {
+            const robotElement = document.querySelector('.robot');
+            if (robotElement) {
+                const robotRow = parseInt(robotElement.dataset.row);
+                const robotCol = parseInt(robotElement.dataset.col);
+                return robotRow === ballPosition[0] && robotCol === ballPosition[1];
+            }
+            return false;
+        }
 
-        const path = findPath(map, startRow, startCol, endRow, endCol);
-        displayPath(map, path);
-        moveRobot(map, path); // Start moving the robot along the path
+        const rows = 20; // Number of rows in the map (adjust as needed)
+        const cols = 20; // Number of columns in the map (adjust as needed)
+        const map = generateMap(rows, cols); // Generate the map
+        displayMap(map); // Display the map on the page
+        const startRow = 0; // Example start points (adjust as needed)
+        const startCol = 0; // Example start points (adjust as needed)
+        const endRow = rows - 1; // Example end points (adjust as needed)
+        const endCol = cols - 1; // Example end points (adjust as needed)
+        const path = findPath(map, startRow, startCol, endRow, endCol); // Find the path using BFS or A* algorithm
+        displayPath(map, path); // Display the path on the map
+        const ballPosition = [Math.floor(Math.random() * rows), Math.floor(Math.random() * cols)]; // Randomly place the ball on the map
+        moveBall(ballPosition); // Move the ball initially to avoid starting on top of it
+        moveRobot(map, path, ballPosition); // Start moving the robot along the path and avoiding the ball
     </script>
 </body>
 </html>
