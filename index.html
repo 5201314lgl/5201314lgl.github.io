@@ -2,64 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>五子棋</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Canvas</title>
     <style>
-        #board {
-            display: grid;
-            grid-template-columns: repeat(15, 30px);
-            grid-gap: 2px;
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
-        .cell {
-            width: 30px;
-            height: 30px;
-            background-color: #f0f0f0;
-            border: 1px solid #ccc;
-        }
-        .black {
-            background-color: black;
-        }
-        .white {
-            background-color: white;
+
+        #canvas {
+            border: 1px solid black;
         }
     </style>
 </head>
 <body>
-    <div id="board"></div>
+    <canvas id="canvas"></canvas>
     <script>
-        const board = document.getElementById('board');
-        const cells = [];
-        for (let i = 0; i < 225; i++) {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
-            cell.addEventListener('click', () => placePiece(i));
-            board.appendChild(cell);
-            cells.push(cell);
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let painting = false;
+
+        function startPosition(e) {
+            painting = true;
+            draw(e);
         }
 
-        let currentPlayer = 'black';
-
-        function placePiece(index) {
-            if (!cells[index].classList.contains('black') && !cells[index].classList.contains('white')) {
-                cells[index].classList.add(currentPlayer);
-                checkWin();
-                currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
-            }
+        function finishedPosition() {
+            painting = false;
+            ctx.beginPath();
         }
 
-        function checkWin() {
-            // 检查是否有玩家获胜的逻辑
-            console.log('Check for win condition');
+        function draw(e) {
+            if (!painting) return;
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'black';
+
+            ctx.lineTo(e.clientX, e.clientY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX, e.clientY);
         }
 
-        const socket = new WebSocket('ws://localhost:8080');
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            placePiece(data.index, data.player);
-        };
-
-        function sendMove(index) {
-            socket.send(JSON.stringify({ index: index, player: currentPlayer }));
-        }
+        // Event listeners
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', finishedPosition);
+        canvas.addEventListener('mousemove', draw);
     </script>
 </body>
 </html>
