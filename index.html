@@ -3,157 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Random Maze with Shortest Path</title>
+    <title>Random Tower Defense Map</title>
     <style>
-        canvas {
-            border: 1px solid black;
+        .map {
+            display: grid;
+            grid-template-columns: repeat(20, 20px); /* Adjust the size as needed */
+            grid-gap: 1px;
+        }
+        .cell {
+            width: 20px;
+            height: 20px;
+        }
+        .empty {
+            background-color: white;
+        }
+        .wall {
+            background-color: black;
+        }
+        .path {
+            background-color: green;
         }
     </style>
 </head>
 <body>
-    <canvas id="mazeCanvas" width="600" height="600"></canvas>
+    <div id="map" class="map"></div>
     <script>
-        const canvas = document.getElementById('mazeCanvas');
-        const ctx = canvas.getContext('2d');
-        const rows = 20;
-        const cols = 20;
-        const cellSize = canvas.width / cols;
-        let maze = [];
-        let start = { x: 0, y: 0 };
-        let end = { x: rows - 1, y: cols - 1 };
-
-        // Initialize the maze with walls
-        function initializeMaze() {
+        function generateMap(rows, cols) {
+            const map = [];
             for (let i = 0; i < rows; i++) {
-                maze[i] = [];
+                const row = [];
                 for (let j = 0; j < cols; j++) {
-                    maze[i][j] = {
-                        top: true,
-                        right: true,
-                        bottom: true,
-                        left: true,
-                        visited: false,
-                        path: false
-                    };
-                }
-            }
-        }
-
-        // Draw the maze on the canvas
-        function drawMaze() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = 0; i < rows; i++) {
-                for (let j = 0; j < cols; j++) {
-                    let x = j * cellSize;
-                    let y = i * cellSize;
-                    if (maze[i][j].top) {
-                        ctx.moveTo(x, y);
-                        ctx.lineTo(x + cellSize, y);
+                    const randomValue = Math.random();
+                    if (randomValue < 0.1) {
+                        row.push('wall'); // 10% chance of being a wall
+                    } else if (randomValue < 0.3) {
+                        row.push('path'); // 20% chance of being a path
                     } else {
-                        ctx.moveTo(x + cellSize, y);
-                        ctx.lineTo(x, y);
-                    }
-                    if (maze[i][j].right) {
-                        ctx.moveTo(x + cellSize, y);
-                        ctx.lineTo(x + cellSize, y + cellSize);
-                    } else {
-                        ctx.moveTo(x + cellSize, y + cellSize);
-                        ctx.lineTo(x + cellSize, y);
-                    }
-                    if (maze[i][j].bottom) {
-                        ctx.moveTo(x + cellSize, y + cellSize);
-                        ctx.lineTo(x, y + cellSize);
-                    } else {
-                        ctx.moveTo(x, y + cellSize);
-                        ctx.lineTo(x + cellSize, y + cellSize);
-                    }
-                    if (maze[i][j].left) {
-                        ctx.moveTo(x, y + cellSize);
-                        ctx.lineTo(x, y);
-                    } else {
-                        ctx.moveTo(x, y);
-                        ctx.lineTo(x, y + cellSize);
+                        row.push('empty'); // 70% chance of being empty
                     }
                 }
+                map.push(row);
             }
-            ctx.stroke();
+            return map;
         }
 
-        // Generate the maze using DFS algorithm
-        function generateMaze(x, y) {
-            let directions = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-            shuffle(directions);
-            for (let direction of directions) {
-                let newX = x + direction.x * 2;
-                let newY = y + direction.y * 2;
-                if (newX >= 0 && newX < cols && newY >= 0 && newY < rows && !maze[newY][newX].visited) {
-                    maze[y + direction.y][x + direction.x].top = false;
-                    maze[newY][newX].top = false;
-                    maze[newY][newX].visited = true;
-                    generateMaze(newX, newY);
-                }
-            }
+        function displayMap(map) {
+            const mapContainer = document.getElementById('map');
+            mapContainer.innerHTML = ''; // Clear previous map
+            map.forEach(row => {
+                row.forEach(cell => {
+                    const cellElement = document.createElement('div');
+                    cellElement.classList.add('cell', cell);
+                    mapContainer.appendChild(cellElement);
+                });
+            });
         }
 
-        // Shuffle an array (Fisher-Yates algorithm)
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
-
-        // Find the shortest path using BFS algorithm and animate it
-        function findShortestPath() {
-            let queue = [{ x: start.x, y: start.y, path: [] }];
-            maze[start.y][start.x].visited = true;
-            while (queue.length > 0) {
-                let current = queue.shift();
-                if (current.x === end.x && current.y === end.y) {
-                    animatePath(current.path);
-                    return;
-                }
-                let neighbors = [
-                    { x: current.x + 1, y: current.y },
-                    { x: current.x - 1, y: current.y },
-                    { x: current.x, y: current.y + 1 },
-                    { x: current.x, y: current.y - 1 }
-                ];
-                for (let neighbor of neighbors) {
-                    if (neighbor.x >= 0 && neighbor.x < cols && neighbor.y >= 0 && neighbor.y < rows && !maze[neighbor.y][neighbor.x].visited) {
-                        maze[neighbor.y][neighbor.x].visited = true;
-                        queue.push({ x: neighbor.x, y: neighbor.y, path: [...current.path, { x: neighbor.x, y: neighbor.y }] });
-                    }
-                }
-            }
-        }
-
-        // Animate the path found by BFS algorithm
-        function animatePath(path) {
-            let index = 0;
-            function drawNextStep() {
-                if (index < path.length) {
-                    let cell = path[index++];
-                    ctx.fillStyle = 'red';
-                    ctx.fillRect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
-                    setTimeout(drawNextStep, 100); // Adjust speed here
-                } else {
-                    ctx.fillStyle = 'green';
-                    ctx.fillRect(end.x * cellSize, end.y * cellSize, cellSize, cellSize);
-                }
-            }
-            drawNextStep();
-        }
-
-        // Main function to initialize and start the process
-        function main() {
-            initializeMaze();
-            generateMaze(start.x, start.y);
-            drawMaze();
-            findShortestPath();
-        }
-
-        main();
+        const rows = 20; // Number of rows in the map
+        const cols = 20; // Number of columns in the map
+        const map = generateMap(rows, cols);
+        displayMap(map);
     </script>
 </body>
 </html>
