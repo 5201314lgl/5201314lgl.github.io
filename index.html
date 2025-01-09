@@ -147,7 +147,7 @@
         function startGame() {
             gameInterval = setInterval(gameLoop, 100);
             document.addEventListener('keydown', changeDirection);
-            setInterval(autoMove, 500); // Auto move every 500ms
+            setInterval(autoMove, 100); // Auto move every 500ms
         }
 
         placeFood();
