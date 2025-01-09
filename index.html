@@ -5,30 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Random Tower Defense Map</title>
     <style>
-        #map {
+        .map {
             display: grid;
-            grid-template-columns: repeat(20, 20px);
-            grid-template-rows: repeat(20, 20px);
-            gap: 0;
+            grid-template-columns: repeat(20, 20px); /* Adjust the size as needed */
+            grid-gap: 1px;
         }
         .cell {
             width: 20px;
             height: 20px;
-            border: 1px solid black;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
-        .empty { background-color: white; }
-        .wall { background-color: black; }
-        .path { background-color: green; }
-        .robot { background-color: red; }
-        .ball { background-color: blue; border-radius: 50%; }
-        .bullet { background-color: yellow; }
+        .empty {
+            background-color: white;
+        }
+        .wall {
+            background-color: black;
+        }
+        .path {
+            background-color: green;
+        }
+        .robot {
+            background-color: red;
+        }
+        .ball {
+            background-color: blue;
+            border-radius: 50%;
+        }
+        .bullet {
+            background-color: yellow;
+        }
     </style>
 </head>
 <body>
-    <div id="map"></div>
+    <div id="map" class="map"></div>
     <div id="timer">Time: 0s</div>
     <script>
         function generateMap(rows, cols) {
@@ -37,12 +45,12 @@
                 const row = [];
                 for (let j = 0; j < cols; j++) {
                     const randomValue = Math.random();
-                    if (randomValue < 0.1) { // 10% chance of being a wall
-                        row.push('wall');
-                    } else if (randomValue < 0.3) { // 20% chance of being a path
-                        row.push('path');
-                    } else { // 70% chance of being empty
-                        row.push('empty');
+                    if (randomValue < 0.1) {
+                        row.push('wall'); // 10% chance of being a wall
+                    } else if (randomValue < 0.3) {
+                        row.push('path'); // 20% chance of being a path
+                    } else {
+                        row.push('empty'); // 70% chance of being empty
                     }
                 }
                 map.push(row);
@@ -69,19 +77,27 @@
                 [1, 0], [-1, 0], [0, 1], [0, -1] // Down, Up, Right, Left
             ];
             const queue = [[startRow, startCol]];
+            const visited = new Set([`${startRow},${startCol}`]);
             const parentMap = new Map();
             parentMap.set(`${startRow},${startCol}`, null);
+
             while (queue.length > 0) {
                 const [currentRow, currentCol] = queue.shift();
                 if (currentRow === endRow && currentCol === endCol) {
                     return reconstructPath(parentMap, endRow, endCol);
                 }
-                const newRow = currentRow + directions[Math.floor(Math.random() * directions.length)][0];
-                const newCol = currentCol + directions[Math.floor(Math.random() * directions.length)][1];
-                if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length && map[newRow][newCol] !== 'wall' && !parentMap.has(`${newRow},${newCol}`)) {
-                    queue.push([newRow, newCol]);
-                    parentMap.set(`${newRow},${newCol}`, [currentRow, currentCol]);
-                }
+                directions.forEach(([dRow, dCol]) => {
+                    const newRow = currentRow + dRow;
+                    const newCol = currentCol + dCol;
+                    if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length) {
+                        const key = `${newRow},${newCol}`;
+                        if (!visited.has(key) && map[newRow][newCol] !== 'wall') {
+                            queue.push([newRow, newCol]);
+                            visited.add(key);
+                            parentMap.set(key, [currentRow, currentCol]);
+                        }
+                    }
+                });
             }
             return []; // No path found
         }
@@ -90,38 +106,47 @@
             const path = [];
             let current = [endRow, endCol];
             while (current !== null) {
-                path.unshift(current); // Add the current step to the beginning of the path
-                current = parentMap.get(`${current[0]},${current[1]}`); // Move to the previous step in the path
+                path.unshift(current);
+                current = parentMap.get(`${current[0]},${current[1]}`);
             }
             return path;
         }
 
+        function displayPath(map, path) {
+            path.forEach(([row, col]) => {
+                const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                if (cellElement && cellElement.classList.contains('path')) {
+                    cellElement.classList.remove('path');
+                    cellElement.classList.add('robot');
+                }
+            });
+        }
+
         function moveRobot(map, path, ballPositions, bulletPositions) {
             let index = 0;
-            let timer = setInterval(() => {
+            let timer = 0;
+            const intervalId = setInterval(() => {
                 if (index < path.length) {
                     const [row, col] = path[index];
                     const cellElement = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
                     if (cellElement) {
                         // Remove robot from previous position if it exists
                         document.querySelectorAll('.robot').forEach(el => el.classList.remove('robot'));
-                        // Add robot to the current position
                         cellElement.classList.add('robot');
-                        index++;
                     }
+                    index++;
                 } else {
-                    clearInterval(timer); // Stop the interval when the path is fully traversed
+                    clearInterval(intervalId); // Stop the interval when the path is fully traversed
                 }
                 // Move ball and check collision with robot
                 moveBall(ballPositions);
                 if (checkCollision(ballPositions)) {
-                    alert("Collision detected! Game over."); // Collision game over message
-                    clearInterval(timer); // Stop the game on collision detection
+                    alert("Collision detected! Game over.");
+                    clearInterval(intervalId); // Stop the game on collision
                 }
-                // Fire bullet every second
                 fireBullet(); // Fire a bullet every second
-                timer++; // Increase timer by 1 second each loop (adjust as needed)
-                document.getElementById('timer').textContent = `Time: ${timer}s`; // Update timer on screen
+                timer++;
+                document.getElementById('timer').textContent = `Time: ${timer}s`;
             }, 500); // Move every 500 milliseconds (adjust as needed)
         }
 
@@ -129,24 +154,76 @@
             const directions = [
                 [1, 0], [-1, 0], [0, 1], [0, -1] // Down, Up, Right, Left
             ];
-            ballPositions.forEach((ballPosition, i) => {
+            ballPositions.forEach((ballPosition, index) => {
                 const direction = directions[Math.floor(Math.random() * directions.length)];
-                const newRow = ballPositions[i][0] + direction[0];
-                const newCol = ballPositions[i][1] + direction[1];
+                const newRow = ballPosition[0] + direction[0];
+                const newCol = ballPosition[1] + direction[1];
                 if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length && map[newRow][newCol] !== 'wall') {
-                    ballPositions[i][0] = newRow;
-                    ballPositions[i][1] = newCol;
+                    ballPosition[0] = newRow;
+                    ballPosition[1] = newCol;
                     const ballElement = document.querySelector(`.cell[data-row="${newRow}"][data-col="${newCol}"]`);
                     if (ballElement) {
                         ballElement.classList.add('ball');
                     }
                 } else {
-                    // Remove the ball if it hits the wall or goes out of bounds
-                    ballPositions.splice(i, 1); // Remove the ball from the array
-                    document.querySelector(`.cell[data-row="${ballPositions[i][0]}"][data-col="${ballPositions[i][1]}"]`).classList.remove('ball'); // Remove the ball from the DOM
+                    // Remove the ball if it hits a wall or goes out of bounds
+                    ballPositions.splice(index, 1); // Remove the ball from the array
                     ballElement.classList.remove('ball'); // Remove the ball from the DOM
                 }
             });
+        }
+
+        function fireBullet() {
+            const bulletPosition = [parseInt(document.querySelector('.robot').dataset.row), parseInt(document.querySelector('.robot').dataset.col)]; // Start position of the bullet (where the robot is)
+            const directions = [
+                [1, 0], [-1, 0], [0, 1], [0, -1] // Down, Up, Right, Left
+            ];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            const newRow = bulletPosition[0] + direction[0];
+            const newCol = bulletPosition[1] + direction[1];
+            if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length && map[newRow][newCol] !== 'wall') {
+                const bulletElement = document.querySelector(`.cell[data-row="${newRow}"][data-col="${newCol}"]`);
+                bulletElement.classList.add('bullet');
+                // Check for collision with balls
+                const ballPositions = []; // Example positions of balls (adjust as needed)
+                if (checkCollisionWithBall(ballPositions, bulletPosition)) {
+                    // Remove the ball and bullet on collision
+                    ballPositions.splice(ballPositions.indexOf(ballPosition), 1); // Remove the ball from the array
+                    document.querySelector(`.cell[data-row="${ballPosition[0]}"][data-col="${ballPosition[1]}"]`).classList.remove('ball'); // Remove the ball from the DOM
+                    document.querySelector(`.cell[data-row="${bulletPosition[0]}"][data-col="${bulletPosition[1]}"]`).classList.remove('bullet'); // Remove the bullet from the DOM
+                } else {
+                    // Move the bullet to the next position after checking collision
+                    moveBullet(bulletPosition);
+                }
+            }
+        }
+
+        function moveBullet(bulletPosition) {
+            const directions = [
+                [1, 0], [-1, 0], [0, 1], [0, -1] // Down, Up, Right, Left
+            ];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            const newRow = bulletPosition[0] + direction[0];
+            const newCol = bulletPosition[1] + direction[1];
+            if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length && map[newRow][newCol] !== 'wall') {
+                document.querySelector(`.cell[data-row="${bulletPosition[0]}"][data-col="${bulletPosition[1]}"]`).classList.remove('bullet'); // Remove the bullet from the previous position
+                document.querySelector(`.cell[data-row="${newRow}"][data-col="${newCol}"]`).classList.add('bullet'); // Add the bullet to the new position
+                bulletPosition[0] = newRow;
+                bulletPosition[1] = newCol;
+            } else {
+                // Remove the bullet if it hits a wall or goes out of bounds
+                document.querySelector(`.cell[data-row="${bulletPosition[0]}"][data-col="${bulletPosition[1]}"]`).classList.remove('bullet'); // Remove the bullet from the DOM
+            }
+        }
+
+        function checkCollisionWithBall(ballPositions, bulletPosition) {
+            for (let i = 0; i < ballPositions.length; i++) {
+                const ballPosition = ballPositions[i];
+                if (ballPosition[0] === bulletPosition[0] && ballPosition[1] === bulletPosition[1]) {
+                    return true; // Collision detected
+                }
+            }
+            return false; // No collision detected
         }
 
         function checkCollision(ballPositions) {
@@ -154,49 +231,30 @@
             if (robotElement) {
                 const robotRow = parseInt(robotElement.dataset.row);
                 const robotCol = parseInt(robotElement.dataset.col);
-                return ballPositions.some(ball => ball[0] === robotRow && ball[1] === robotCol); // Check collision with any ball
-            }
-            return false; // No collision detected with any ball
-        }
-
-        function fireBullet() {
-            const bulletPosition = [parseInt(document.querySelector('.robot').dataset.row), parseInt(document.querySelector('.robot').dataset.col)];
-            const direction = [1, 0]; // Starting direction for the bullet (down)
-            const newRow = bulletPosition[0] + direction[0];
-            const newCol = bulletPosition[1] + direction[1];
-            if (newRow >= 0 && newRow < map.length && newCol >= 0 && newCol < map[0].length && map[newRow][newCol] !== 'wall') {
-                const bulletElement = document.querySelector(`.cell[data-row="${newRow}"][data-col="${newCol}"]`);
-                bulletElement.classList.add('bullet');
-            }
-        }
-
-        function checkCollisionWithBall(bulletPosition, ballPositions) {
-            for (let i = 0; i < ballPositions.length; i++) {
-                const ballPosition = ballPositions[i];
-                if (bulletPosition[0] === ballPosition[0] && bulletPosition[1] === ballPosition[1]) { // Check collision with the ball
-                    return true; // Collision detected
+                for (let i = 0; i < ballPositions.length; i++) {
+                    const ballPosition = ballPositions[i];
+                    if (ballPosition[0] === robotRow && ballPosition[1] === robotCol) {
+                        return true; // Collision detected with any ball
+                    }
                 }
             }
             return false; // No collision detected with any ball
         }
 
-        // Example usage:
         const rows = 20; // Number of rows in the map (adjust as needed)
         const cols = 20; // Number of columns in the map (adjust as needed)
         const map = generateMap(rows, cols); // Generate the map
         displayMap(map); // Display the map on the page
-        const path = findPath(map, 0, 0, rows - 1, cols - 1); // Find the BFS path using the map or another algorithm (e.g. Dijkstra's)
-        displayPath(path); // Display the path on the map
+        const startRow = 0; // Example start points (adjust as needed)
+        const startCol = 0; // Example start points (adjust as needed)
+        const endRow = rows - 1; // Example end points (adjust as needed)
+        const endCol = cols - 1; // Example end points (adjust as needed)
+        const path = findPath(map, startRow, startCol, endRow, endCol); // Find the path using BFS or A* algorithm
+        displayPath(map, path); // Display the path on the map
         const ballPositions = []; // Example ball positions (generate randomly or as needed)
         moveBall(ballPositions); // Move the balls initially to avoid starting on top of them
-        const bulletPositions = []; // Example bullet positions (generate randomly or as needed)
-        moveRobot(map, [], // Starting point of the robot (where the bullet is positioned)
-            ballPositions, // Ball positions to avoid shooting at them and the robot itself
-            bulletPositions); // List of bullet positions (initially empty)
+        
+        moveRobot(map, path, ballPositions, []); // Start moving the robot along the path and avoiding the balls and shooting bullets
     </script>
-</head>
-<body>
-    <div id="map"></div>
-    <div id="timer">Time: 0s</div>
-</body>
 </html>
+    
